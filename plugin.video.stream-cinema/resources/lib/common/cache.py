@@ -48,7 +48,7 @@ class SimpleCache(object):
         """
             get object from cache and return the results
             endpoint: the (unique) name of the cache object as reference
-            checkum: optional argument to check if the checksum in the cacheobject matches the checkum provided
+            checksum: optional argument to check if the checksum in the cacheobject matches the checksum provided
         """
         if self._enabled is not True:
             return None

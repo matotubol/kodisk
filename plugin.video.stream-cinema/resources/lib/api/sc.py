@@ -243,7 +243,7 @@ class Sc:
     @staticmethod
     def download_menu_bg():
         from threading import Thread
-        worker = Thread(target=Sc.download_menu())
+        worker = Thread(target=Sc.download_menu)
         worker.start()
 
     @staticmethod
