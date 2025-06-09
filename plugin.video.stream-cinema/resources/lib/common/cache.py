@@ -90,10 +90,21 @@ class SimpleCache(object):
         cur_time = datetime.datetime.now()
         lastexecuted = self._win.getProperty("simplecache.clean.lastexecuted")
         if not lastexecuted:
-            self._win.setProperty("simplecache.clean.lastexecuted", repr(cur_time))
-        elif (eval(lastexecuted) + self._auto_clean_interval) < cur_time:
-            # cleanup needed...
-            self._do_cleanup()
+            self._win.setProperty(
+                "simplecache.clean.lastexecuted", cur_time.isoformat()
+            )
+        else:
+            try:
+                last_dt = datetime.datetime.fromisoformat(lastexecuted)
+            except ValueError:
+                # fall back to old repr format if encountered
+                try:
+                    last_dt = eval(lastexecuted)
+                except Exception:
+                    last_dt = cur_time
+            if last_dt + self._auto_clean_interval < cur_time:
+                # cleanup needed...
+                self._do_cleanup()
 
     def _get_mem_cache(self, endpoint, checksum, cur_time):
         """
@@ -174,7 +185,9 @@ class SimpleCache(object):
 
         # remove task from list
         self._busy_tasks.remove(__name__)
-        self._win.setProperty("simplecache.clean.lastexecuted", repr(cur_time))
+        self._win.setProperty(
+            "simplecache.clean.lastexecuted", cur_time.isoformat()
+        )
         self._win.clearProperty("simplecachecleanbusy")
         self._log_msg("Auto cleanup done")
 

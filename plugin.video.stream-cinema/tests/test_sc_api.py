@@ -29,6 +29,7 @@ fake_xbmcvfs.translatePath = lambda x: x
 fake_xbmcvfs.validatePath = lambda x: x
 fake_xbmcvfs.makeLegalFilename = lambda x: x
 fake_xbmcvfs.mkdir = lambda *args, **kwargs: None
+fake_xbmcvfs.mkdirs = lambda *args, **kwargs: None
 fake_xbmcvfs.exists = lambda *args, **kwargs: False
 class _Stat:
     def __init__(self, filename):
