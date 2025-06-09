@@ -341,10 +341,10 @@ def container_refresh():
 
 def container_update(url, replace=False):
     if replace:
-        debug('containter replace {}'.format(url))
+        debug('container replace {}'.format(url))
         exec_build_in('Container.Update({},replace)'.format(url))
     else:
-        debug('containter update {}'.format(url))
+        debug('container update {}'.format(url))
         exec_build_in('Container.Update({})'.format(url))
 
 
