@@ -14,7 +14,7 @@ from resources.lib.debug import performance
 from resources.lib.intro import intro
 from resources.lib.kodiutils import params, container_refresh, urlencode, container_update, create_plugin_url, \
     exec_build_in, download, get_setting, update_addon, set_setting_as_bool, notify, get_setting_as_bool
-from resources.lib.common.logger import info, debug
+from resources.lib.common.logger import info, debug, warning
 from resources.lib.common.lists import List, SCKODIItem
 from resources.lib.constants import SORT_METHODS, SC, GUI, ADDON_ID
 from resources.lib.api.sc import Sc
@@ -26,6 +26,20 @@ from resources.lib.language import Strings
 from resources.lib.params import params
 from resources.lib.services.next_episodes import NextEp
 from resources.lib.system import SYSTEM_LANG_CODE
+
+
+ALLOWED_CMD_PREFIXES = [
+    'Action(',
+    'PlayMedia(',
+    'RunPlugin(',
+    'Container.Update',
+    'Container.Refresh',
+    'ActivateWindow(',
+    'Addon.OpenSettings(',
+    'SetFocus(',
+    'UpdateAddonRepos',
+    'UpdateLocalAddons',
+]
 
 
 class Scinema:
@@ -244,9 +258,12 @@ class Scinema:
         url = self.args.get('url')
         if url.startswith('cmd://'):
             cmd = url[6:]
-            info('CMD: {}'.format(cmd))
-            exec_build_in(cmd)
-            self.send_end = True
+            if any(cmd.startswith(p) for p in ALLOWED_CMD_PREFIXES):
+                info('CMD: {}'.format(cmd))
+                exec_build_in(cmd)
+                self.send_end = True
+            else:
+                warning('Blocked CMD attempt: {}'.format(cmd))
             # self.succeeded = True
             # self.end_of_directory()
 
