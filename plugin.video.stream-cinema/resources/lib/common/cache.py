@@ -4,6 +4,7 @@ import xbmc
 import datetime
 import time
 import sqlite3
+import json
 from functools import reduce
 
 from resources.lib.common.logger import debug
@@ -90,8 +91,14 @@ class SimpleCache(object):
         cur_time = datetime.datetime.now()
         lastexecuted = self._win.getProperty("simplecache.clean.lastexecuted")
         if not lastexecuted:
-            self._win.setProperty("simplecache.clean.lastexecuted", repr(cur_time))
-        elif (eval(lastexecuted) + self._auto_clean_interval) < cur_time:
+            self._win.setProperty(
+                "simplecache.clean.lastexecuted",
+                cur_time.isoformat()
+            )
+        elif (
+            datetime.datetime.fromisoformat(lastexecuted)
+            + self._auto_clean_interval
+        ) < cur_time:
             # cleanup needed...
             self._do_cleanup()
 
@@ -104,10 +111,13 @@ class SimpleCache(object):
         cachedata = self._win.getProperty(endpoint)
 
         if cachedata:
-            cachedata = eval(cachedata)
-            if cachedata[0] > cur_time:
-                if not checksum or checksum == cachedata[2]:
-                    result = cachedata[1]
+            try:
+                cachedata = json.loads(cachedata)
+            except Exception:
+                cachedata = None
+            if cachedata and cachedata["expires"] > cur_time:
+                if not checksum or checksum == cachedata["checksum"]:
+                    result = cachedata["data"]
         return result
 
     def _set_mem_cache(self, endpoint, checksum, expires, data):
@@ -115,8 +125,12 @@ class SimpleCache(object):
             window property cache as alternative for memory cache
             usefull for (stateless) plugins
         """
-        cachedata = (expires, data, checksum)
-        cachedata_str = repr(cachedata)
+        cachedata = {
+            "expires": expires,
+            "data": data,
+            "checksum": checksum,
+        }
+        cachedata_str = json.dumps(cachedata)
         self._win.setProperty(endpoint, cachedata_str)
 
     def _get_db_cache(self, endpoint, checksum, cur_time):
@@ -128,16 +142,19 @@ class SimpleCache(object):
             cache_data = cache_data.fetchone()
             if cache_data and cache_data[0] > cur_time:
                 if not checksum or cache_data[2] == checksum:
-                    result = eval(cache_data[1])
+                    try:
+                        result = json.loads(cache_data[1])
+                    except Exception:
+                        result = None
                     # also set result in memory cache for further access
-                    if self.enable_mem_cache:
+                    if result is not None and self.enable_mem_cache:
                         self._set_mem_cache(endpoint, checksum, cache_data[0], result)
         return result
 
     def _set_db_cache(self, endpoint, checksum, expires, data):
         """ store cache data in _database """
         query = "INSERT OR REPLACE INTO simplecache( id, expires, data, checksum) VALUES (?, ?, ?, ?)"
-        data = repr(data)
+        data = json.dumps(data)
         self._execute_sql(query, (endpoint, expires, data, checksum))
 
     def _do_cleanup(self):
@@ -174,7 +191,10 @@ class SimpleCache(object):
 
         # remove task from list
         self._busy_tasks.remove(__name__)
-        self._win.setProperty("simplecache.clean.lastexecuted", repr(cur_time))
+        self._win.setProperty(
+            "simplecache.clean.lastexecuted",
+            cur_time.isoformat()
+        )
         self._win.clearProperty("simplecachecleanbusy")
         self._log_msg("Auto cleanup done")
 
