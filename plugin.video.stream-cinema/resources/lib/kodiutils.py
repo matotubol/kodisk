@@ -329,7 +329,41 @@ def params(url):
 
 
 def exec_build_in(cmd):
+    """
+    Execute Kodi builtin command with security validation
+    
+    SECURITY: This function validates commands to prevent arbitrary code execution.
+    Only specific, safe commands are allowed to pass through.
+    """
     cmd = cmd.replace('__self__', ADDON_ID)
+    
+    # List of allowed Kodi commands - add more as needed but carefully review each
+    allowed_commands = [
+        'Action(Back)',
+        'Container.Refresh',
+        'Container.Update',
+        'PlayMedia',
+        'ActivateWindow',
+        'SetFocus',
+        'Addon.OpenSettings',
+    ]
+    
+    # Check if command starts with any allowed command
+    is_allowed = False
+    for allowed_cmd in allowed_commands:
+        if cmd.startswith(allowed_cmd):
+            is_allowed = True
+            break
+    
+    # Block any System.Exec commands completely - these are dangerous
+    if "System.Exec" in cmd or "System.ExecWait" in cmd:
+        info("SECURITY: Blocked potentially dangerous command: {}".format(cmd))
+        return
+    
+    if not is_allowed:
+        info("SECURITY: Blocked non-whitelisted command: {}".format(cmd))
+        return
+    
     debug('exec {}'.format(cmd))
     xbmc.executebuiltin(cmd)
 
@@ -718,26 +752,31 @@ def copy2clip(txt):
     platform = sys_platform
     if platform == "win32":
         try:
-            from subprocess import check_call
-            # cmd = "echo " + txt.strip() + "|clip"
-            cmd = "echo " + txt.replace('&', '^&').strip() + "|clip"  # "&" is a command seperator
-            return check_call(cmd, shell=True)
-        except:
-            debug('Windows: Failure to copy to clipboard')
+            from subprocess import run, PIPE
+            # Use subprocess.run with shell=False to prevent shell injection
+            # Pass arguments as a list instead of a shell command string
+            return run(["powershell", "-command", "$null = Set-Clipboard -Value '" + txt.replace("'", "''") + "'"], 
+                      shell=False, check=True, stdout=PIPE, stderr=PIPE)
+        except Exception as e:
+            debug(f'Windows: Failure to copy to clipboard: {str(e)}')
     elif platform == "darwin":
         try:
-            from subprocess import check_call
-            cmd = "echo " + txt.strip() + "|pbcopy"
-            return check_call(cmd, shell=True)
-        except:
-            debug('Mac: Failure to copy to clipboard')
+            from subprocess import run, PIPE
+            # Use subprocess.run with shell=False to prevent shell injection
+            # Pass the text through stdin instead of command line
+            p = run(["pbcopy"], shell=False, input=txt.encode('utf-8'), check=True, stdout=PIPE, stderr=PIPE)
+            return p
+        except Exception as e:
+            debug(f'Mac: Failure to copy to clipboard: {str(e)}')
     elif platform == "linux":
         try:
-            from subprocess import Popen, PIPE
-            p = Popen(["xsel", "-pi"], stdin=PIPE)
-            p.communicate(input=txt)
-        except:
-            debug('Linux: Failure to copy to clipboard')
+            from subprocess import run, PIPE
+            # Use subprocess.run with shell=False to prevent shell injection
+            # Pass the text through stdin instead of command line
+            p = run(["xsel", "-pi"], shell=False, input=txt.encode('utf-8'), check=True, stdout=PIPE, stderr=PIPE)
+            return p
+        except Exception as e:
+            debug(f'Linux: Failure to copy to clipboard: {str(e)}')
 
 
 def file_put_contents(file, data):
